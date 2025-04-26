@@ -1,0 +1,13 @@
+{
+  "googleApiKey": "YOUR_GOOGLE_API_KEY",
+  "googleClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+  "googleRedirectUri": "https://family-tv-dashboard.netlify.app/",
+  "sheetId": "YOUR_GOOGLE_SHEET_ID",
+  "googlePhotosAlbumId": "YOUR_GOOGLE_PHOTOS_ALBUM_ID",
+  "refreshIntervalMinutes": 3,
+  "photoRotationIntervalSeconds": 10,
+  "defaultCalendarView": "week",
+  "features": { "weather": true, "photos": true },
+  "theme": "minimal",
+  "language": "en"
+}
