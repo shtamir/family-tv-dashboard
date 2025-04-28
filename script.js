@@ -333,21 +333,25 @@ async function loadCalendarEvents() {
     }
 
     // Handle login button click
-    calendarLoginBtn.addEventListener('click', async () => {
-        calendarEvents.innerHTML = '<p>Connecting to Google Calendar...</p>';
+    const adminLoginForm = document.getElementById('admin-login-form');
 
-        try {
-            await authenticateWithGoogle(); // Force login
-            const events = await fetchGoogleCalendarEvents();
-            renderCalendar(events);
+    adminLoginForm.addEventListener('submit', (event) => {
+        event.preventDefault(); // Prevent full page reload
 
-            // Hide login button after success
-            calendarLoginBtn.classList.add('hidden');
-        } catch (loginError) {
-            console.error('Login to Google Calendar failed.', loginError);
-            calendarEvents.innerHTML = '<p>Login failed. Showing offline events.</p>';
+        const passwordInput = document.getElementById('admin-password').value;
+
+        // Example: Hardcoded password for now (later from config or .env)
+        const correctPassword = '1234'; // Change this later!
+
+        if (passwordInput === correctPassword) {
+            adminLogin.classList.add('hidden');
+            adminSettings.classList.remove('hidden');
+            adminLoginError.textContent = '';
+        } else {
+            adminLoginError.textContent = 'Incorrect password. Try again.';
         }
     });
+
 }
 
 
