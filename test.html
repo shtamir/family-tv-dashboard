@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OAuth2 Test</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <h1>OAuth2 Token Test</h1>
+  <button id="login">Login with Google</button>
+
+  <script>
+    let tokenClient;
+
+    window.onload = () => {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        //client_id: '477653231572-bbf1hj129rsn78uks60s9ennau5siunc.apps.googleusercontent.com', // your client ID
+        client_id: '477653231572-jmm4fm5qjmb7lr6j7limleg19lf00ci9.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/userinfo.email',
+        callback: (tokenResponse) => {
+          if (tokenResponse.error) {
+            alert('Login failed: ' + tokenResponse.error);
+          } else {
+            console.log('Access Token:', tokenResponse.access_token);
+            alert('Login successful!\nAccess token: ' + tokenResponse.access_token);
+          }
+        },
+      });
+
+      document.getElementById('login').onclick = () => {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      };
+    };
+  </script>
+</body>
+</html>

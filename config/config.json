@@ -1,9 +1,11 @@
 {
-  "googleApiKey": "YOUR_GOOGLE_API_KEY",
-  "googleClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+  "googleApiKey": "AIzaSyBJE3lpOzyh2AtTxc4nocD1Z6qFMJ0u0ho",
+  "googleClientId": "477653231572-jmm4fm5qjmb7lr6j7limleg19lf00ci9.apps.googleusercontent.com",
   "googleRedirectUri": "https://family-tv-dashboard.netlify.app/",
-  "sheetId": "YOUR_GOOGLE_SHEET_ID",
-  "googlePhotosAlbumId": "YOUR_GOOGLE_PHOTOS_ALBUM_ID",
+  "sheetId": "1doFkehlUaBnt6NBCfQQqwL0h4zANey2MWF9px3qgaDQ",
+  "googlePhotosAlbumId": "AF1QipOtMf9Oxo53I15SZs_TJHnCtNj2ch-mz4lHIO37pDlMcJvrWpVjk6DHTxmyEDkFnQ",
+  "latitude": 32.778601,
+  "longitude": 35.002156,
   "refreshIntervalMinutes": 3,
   "photoRotationIntervalSeconds": 10,
   "defaultCalendarView": "week",
@@ -11,3 +13,4 @@
   "theme": "minimal",
   "language": "en"
 }
+

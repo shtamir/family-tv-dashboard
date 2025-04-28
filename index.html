@@ -1,1 +1,110 @@
-<!DOCTYPE html><html><head><title>Family Dashboard</title></head><body><h1>Family TV Dashboard</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Family TV Dashboard</title>
+    
+        <link rel="stylesheet" href="style.css">
+        <link id="theme-style" rel="stylesheet" href="themes/info-dense.css"> <!-- Theme will change this -->
+
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <script src="https://apis.google.com/js/api.js" async defer></script>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+
+    </head>
+<body>
+    <header id="header">
+        <h1>The Shteinbergs!</h1>
+        <div id="datetime">00.00.0000 - 00:00</div>
+    </header>
+
+    <main>
+        <section id="messages">
+            <h2>Family Messages</h2>
+            <div id="messages-list"></div>
+        </section>
+
+        <section id="todo">
+            <h2>To-Do List</h2>
+            <div id="todo-list"></div>
+        </section>
+
+        <section id="photos">
+            <h2>Family Photos</h2>
+            <div id="photo-carousel"></div>
+        </section>
+
+        <section id="weather">
+            <h2>3-Day Weather Forecast</h2>
+            <div id="weather-forecast"></div>
+        </section>
+
+        <section id="calendar">
+            <h2>Family Calendar</h2>
+            <button id="calendar-login-btn" class="hidden">Login to Google Calendar</button>
+            <div id="calendar-events"></div>
+        </section>
+
+        <div id="admin-panel-toggle">
+            <button id="open-admin">Admin</button>
+        </div>
+    </main>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel" class="hidden">
+        <div id="admin-login">
+            <h2>Admin Login</h2>
+            <input type="password" id="admin-password" placeholder="Enter password" />
+            <br>
+            <button id="admin-login-btn">Login</button>
+            <p id="admin-login-error" class="error"></p>
+        </div>
+
+        <div id="admin-settings" class="hidden">
+            <h2>Admin Settings</h2>
+        
+            <div class="admin-setting">
+                <label>Language:</label>
+                <select id="setting-language">
+                    <option value="en">English</option>
+                    <option value="he">Hebrew</option>
+                </select>
+            </div>
+        
+            <div class="admin-setting">
+                <label>Theme:</label>
+                <select id="setting-theme">
+                    <option value="minimal">Minimal</option>
+                    <option value="playful">Playful</option>
+                    <option value="info-dense">Info Dense</option>
+                </select>
+            </div>
+        
+            <div class="admin-setting">
+                <label>Refresh Interval (minutes):</label>
+                <input type="number" id="setting-refresh-interval" min="1" max="60">
+            </div>
+        
+            <div class="admin-setting">
+                <label>Enable Weather:</label>
+                <input type="checkbox" id="setting-weather">
+            </div>
+        
+            <div class="admin-setting">
+                <label>Enable Photos:</label>
+                <input type="checkbox" id="setting-photos">
+            </div>
+        
+            <button id="admin-save-settings">Save Settings</button>
+            <br><br>
+            <button id="admin-logout-btn">Logout</button>
+        </div>
+        
+    </div>
+
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

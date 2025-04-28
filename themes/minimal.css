@@ -1,0 +1,21 @@
+body {
+    background-color: #f0f2f5;
+    color: #333;
+}
+
+header {
+    background-color: #4CAF50;
+    color: white;
+}
+
+section {
+    background-color: white;
+}
+
+button {
+    background-color: #2196F3;
+}
+
+button:hover {
+    background-color: #1976D2;
+}
