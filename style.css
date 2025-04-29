@@ -98,7 +98,7 @@ input, select {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .admin-setting {
