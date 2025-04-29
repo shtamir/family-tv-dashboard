@@ -135,8 +135,17 @@ input, select {
     justify-content: center;
     font-size: 2rem;
     color: #333;
-    z-index: 2000; /* Above everything */
+    z-index: 2000;
+    opacity: 1; /* Add */
+    transition: opacity 0.5s ease; /* Add */
+    pointer-events: auto; /* default behavior */
 }
+
+#spinner.hidden {
+    opacity: 0; /* Fades out */
+    pointer-events: none; /* Prevents click blocking */
+}
+
 
 .spinner-icon {
     width: 80px;
