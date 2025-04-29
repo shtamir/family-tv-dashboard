@@ -121,3 +121,34 @@ input, select {
     border-radius: 12px;
     font-size: 1.5rem;
 }
+
+#spinner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #333;
+    z-index: 2000; /* Above everything */
+}
+
+.spinner-icon {
+    width: 80px;
+    height: 80px;
+    border: 10px solid #ccc;
+    border-top: 10px solid #2196F3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

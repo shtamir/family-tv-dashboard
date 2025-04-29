@@ -298,6 +298,8 @@ async function detectLocation() {
     }
 }
 
+// --- Google Calendar Events ---
+// Load Google Calendar events
 async function loadCalendarEvents() {
     const calendarEvents = document.getElementById('calendar-events');
     const calendarLoginBtn = document.getElementById('calendar-login-btn');
@@ -333,29 +335,48 @@ async function loadCalendarEvents() {
     }
 
     // Handle login button click
-    const adminLoginForm = document.getElementById('admin-login-form');
+    calendarLoginBtn.addEventListener('click', async () => {
+        showSpinner(); // show spinner
 
-    adminLoginForm.addEventListener('submit', (event) => {
-        event.preventDefault(); // Prevent full page reload
+        try {
+            await authenticateWithGoogle(); // Force login popup
+            const events = await fetchGoogleCalendarEvents();
+            renderCalendar(events);
 
-        const passwordInput = document.getElementById('admin-password').value;
-
-        // Example: Hardcoded password for now (later from config or .env)
-        const correctPassword = '1234'; // Change this later!
-
-        if (passwordInput === correctPassword) {
-            adminLogin.classList.add('hidden');
-            adminSettings.classList.remove('hidden');
-            adminLoginError.textContent = '';
-        } else {
-            adminLoginError.textContent = 'Incorrect password. Try again.';
+            calendarLoginBtn.classList.add('hidden');
+        } catch (loginError) {
+            console.error('Login to Google Calendar failed.', loginError);
+            calendarEvents.innerHTML = '<p>Login failed. Showing offline events.</p>';
+        } finally {
+            hideSpinner(); // hide spinner
         }
     });
-
 }
 
 
 
+// --- Admin Login Form ---
+const adminLoginForm = document.getElementById('admin-login-form');
+
+adminLoginForm.addEventListener('submit', (event) => {
+    event.preventDefault(); // Prevent full page reload
+
+    const passwordInput = document.getElementById('admin-password').value;
+
+    const correctPassword = '1234'; // Later from config
+
+    if (passwordInput === correctPassword) {
+        adminLogin.classList.add('hidden');
+        adminSettings.classList.remove('hidden');
+        adminLoginError.textContent = '';
+    } else {
+        adminLoginError.textContent = 'Incorrect password. Try again.';
+    }
+});
+
+
+// --- Calendar Events ---
+// Fetch and render calendar events
 function renderCalendar(events) {
     const calendarEvents = document.getElementById('calendar-events');
     calendarEvents.innerHTML = '';
@@ -631,3 +652,12 @@ document.getElementById('calendar-login-btn').addEventListener('click', async ()
         calendarEvents.innerHTML = '<p>Login failed. Showing offline events.</p>';
     }
 });
+
+function showSpinner() {
+    document.getElementById('spinner').classList.remove('hidden');
+}
+
+function hideSpinner() {
+    document.getElementById('spinner').classList.add('hidden');
+}
+
