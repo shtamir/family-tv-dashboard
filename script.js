@@ -240,4 +240,6 @@ function renderCalendar(events) {
 // (Code will continue here for admin login, settings, etc...)
 
 // --- Start ---
-loadConfig();
+document.addEventListener('DOMContentLoaded', () => {
+    loadConfig(); // Load configuration and initialize dashboard
+});
