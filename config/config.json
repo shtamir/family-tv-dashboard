@@ -11,6 +11,7 @@
   "defaultCalendarView": "week",
   "features": { "weather": true, "photos": true },
   "theme": "minimal",
-  "language": "en"
+  "language": "en",
+  "adminEnabled": false
 }
 

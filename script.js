@@ -256,7 +256,7 @@ function hideSpinner() {
     document.getElementById('spinner').classList.add('hidden');
 }
 
-
+/*
 // --- Admin Panel Logic ---
 openAdminBtn.addEventListener('click', () => {
     adminPanel.classList.remove('hidden');
@@ -284,7 +284,7 @@ if (adminLogoutBtn) {
       adminPanel.classList.add('hidden');
     });
   }
-
+*/
 
 function loadAdminSettingsUI() {
     // load saved settings into Admin Panel fields
