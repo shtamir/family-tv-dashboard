@@ -247,6 +247,16 @@ function renderCalendar(events) {
     });
 }
 
+// --- Spinner Control ---
+function showSpinner() {
+    document.getElementById('spinner').classList.remove('hidden');
+}
+
+function hideSpinner() {
+    document.getElementById('spinner').classList.add('hidden');
+}
+
+
 // --- Admin Panel Logic ---
 openAdminBtn.addEventListener('click', () => {
     adminPanel.classList.remove('hidden');
