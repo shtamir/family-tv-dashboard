@@ -1,16 +1,16 @@
-// script.js (Cleaned + Well-Commented Version)
-// DOM Elements
+// script.js (Final Cleaned + Fixed Version)
+
+// --- DOM Elements ---
 const adminPanel = document.getElementById('admin-panel');
 const adminLogin = document.getElementById('admin-login');
 const adminSettings = document.getElementById('admin-settings');
 const adminLoginBtn = document.getElementById('admin-login-btn');
 const adminLogoutBtn = document.getElementById('admin-logout-btn');
 const adminLoginError = document.getElementById('admin-login-error');
+const adminLoginForm = document.getElementById('admin-login-form');
+const openAdminBtn = document.getElementById('open-admin');
 
-
-
-
-// Import helper APIs
+// --- Import helper APIs ---
 import { fetchGoogleSheet, fetchWeatherForecast, fetchPhotosFromGoogleAlbum } from './utils/api.js';
 
 let config = {};
@@ -20,7 +20,7 @@ let photoTimer = null;
 let gapiLoaded = false;
 let gapiTokenClient = null;
 
-// --- Load config from localStorage or network ---
+// --- Load Config ---
 async function loadConfig() {
     const cachedConfig = localStorage.getItem('familyDashboardConfig');
     if (cachedConfig) {
@@ -42,7 +42,6 @@ async function loadConfig() {
         localStorage.setItem('familyDashboardConfig', JSON.stringify(config));
     } catch (error) {
         console.warn('Main config.json failed, trying default-config.json...', error);
-
         const responseDefault = await fetch('default-config.json');
         if (!responseDefault.ok) throw new Error('default-config.json not found');
         config = await responseDefault.json();
@@ -60,7 +59,7 @@ async function loadConfig() {
     initializeDashboard();
 }
 
-// --- Initialize the dashboard sections ---
+// --- Initialize Dashboard ---
 function initializeDashboard() {
     adminPanel.classList.add('hidden');
     adminLogin.classList.add('hidden');
@@ -75,7 +74,7 @@ function initializeDashboard() {
     loadAdminSettingsUI();
 }
 
-// --- Clock handling ---
+// --- Clock Handling ---
 function updateClock() {
     const now = new Date();
     const formatted = now.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
@@ -246,10 +245,33 @@ function renderCalendar(events) {
     });
 }
 
-// --- Admin Panel Login ---
-// (Code will continue here for admin login, settings, etc...)
+// --- Admin Panel Logic ---
+openAdminBtn.addEventListener('click', () => {
+    adminPanel.classList.remove('hidden');
+    adminLogin.classList.remove('hidden');
+    adminSettings.classList.add('hidden');
+});
+
+adminLoginForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const passwordInput = document.getElementById('admin-password').value;
+    const correctPassword = '1234';
+
+    if (passwordInput === correctPassword) {
+        adminLogin.classList.add('hidden');
+        adminSettings.classList.remove('hidden');
+        adminLoginError.textContent = '';
+    } else {
+        adminLoginError.textContent = 'Incorrect password. Try again.';
+    }
+});
+
+adminLogoutBtn.addEventListener('click', () => {
+    adminPanel.classList.add('hidden');
+});
 
 // --- Start ---
 document.addEventListener('DOMContentLoaded', () => {
-    loadConfig(); // Load configuration and initialize dashboard
+    loadConfig();
 });
