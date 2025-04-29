@@ -74,6 +74,8 @@ function initializeDashboard() {
     loadAdminSettingsUI();
 }
 
+
+
 // --- Clock Handling ---
 function updateClock() {
     const now = new Date();
@@ -270,6 +272,20 @@ adminLoginForm.addEventListener('submit', (event) => {
 adminLogoutBtn.addEventListener('click', () => {
     adminPanel.classList.add('hidden');
 });
+
+
+function loadAdminSettingsUI() {
+    // load saved settings into Admin Panel fields
+    const savedSettings = JSON.parse(localStorage.getItem('familyDashboardSettings') || '{}');
+
+    if (savedSettings.language) document.getElementById('setting-language').value = savedSettings.language;
+    if (savedSettings.theme) document.getElementById('setting-theme').value = savedSettings.theme;
+    if (savedSettings.refreshIntervalMinutes) document.getElementById('setting-refresh-interval').value = savedSettings.refreshIntervalMinutes;
+    if (savedSettings.features) {
+        document.getElementById('setting-weather').checked = savedSettings.features.weather;
+        document.getElementById('setting-photos').checked = savedSettings.features.photos;
+    }
+}
 
 // --- Start ---
 document.addEventListener('DOMContentLoaded', () => {
