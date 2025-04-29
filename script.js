@@ -1,4 +1,14 @@
 // script.js (Cleaned + Well-Commented Version)
+// DOM Elements
+const adminPanel = document.getElementById('admin-panel');
+const adminLogin = document.getElementById('admin-login');
+const adminSettings = document.getElementById('admin-settings');
+const adminLoginBtn = document.getElementById('admin-login-btn');
+const adminLogoutBtn = document.getElementById('admin-logout-btn');
+const adminLoginError = document.getElementById('admin-login-error');
+
+
+
 
 // Import helper APIs
 import { fetchGoogleSheet, fetchWeatherForecast, fetchPhotosFromGoogleAlbum } from './utils/api.js';
