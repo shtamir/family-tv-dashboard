@@ -279,9 +279,11 @@ adminLoginForm.addEventListener('submit', (event) => {
     }
 });
 
-adminLogoutBtn.addEventListener('click', () => {
-    adminPanel.classList.add('hidden');
-});
+if (adminLogoutBtn) {
+    adminLogoutBtn.addEventListener('click', () => {
+      adminPanel.classList.add('hidden');
+    });
+  }
 
 
 function loadAdminSettingsUI() {
