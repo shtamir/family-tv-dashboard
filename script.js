@@ -1,4 +1,4 @@
-// script.js (Final Cleaned + Fixed Version)
+// script.js - Updated with GIS implementation
 
 // --- DOM Elements ---
 const adminPanel = document.getElementById('admin-panel');
@@ -8,17 +8,17 @@ const adminLoginBtn = document.getElementById('admin-login-btn');
 const adminLogoutBtn = document.getElementById('admin-logout-btn');
 const adminLoginError = document.getElementById('admin-login-error');
 const adminLoginForm = document.getElementById('admin-login-form');
-const openAdminBtn = document.getElementById('open-admin');
+const calendarLoginBtn = document.getElementById('calendar-login-btn');
 
-// --- Import helper APIs ---
-import { fetchGoogleSheet, fetchWeatherForecast, fetchPhotosFromGoogleAlbum } from './utils/api.js';
-
+// --- Google Auth Variables ---
+let googleToken = null;
 let config = {};
 let currentPhotoIndex = 0;
 let photoUrls = [];
 let photoTimer = null;
-let gapiLoaded = false;
-let gapiTokenClient = null;
+
+// --- Import helper APIs ---
+import { fetchGoogleSheet, fetchWeatherForecast } from './utils/api.js';
 
 // --- Load Config ---
 async function loadConfig() {
@@ -73,8 +73,6 @@ function initializeDashboard() {
 
     loadAdminSettingsUI();
 }
-
-
 
 // --- Clock Handling ---
 function updateClock() {
@@ -135,6 +133,34 @@ function renderTodos(rows) {
     });
 }
 
+// --- Google Authentication ---
+async function authenticateWithGoogle() {
+    return new Promise((resolve, reject) => {
+        if (googleToken) {
+            resolve(googleToken);
+            return;
+        }
+
+        const client = google.accounts.oauth2.initTokenClient({
+            client_id: config.googleClientId,
+            scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/photoslibrary.readonly',
+            callback: (response) => {
+                if (response.error) {
+                    reject(response.error);
+                    return;
+                }
+                googleToken = response.access_token;
+                resolve(response);
+            },
+            error_callback: (error) => {
+                reject(error);
+            }
+        });
+
+        client.requestAccessToken();
+    });
+}
+
 // --- Photos Carousel ---
 async function loadPhotos() {
     const photoCarousel = document.getElementById('photo-carousel');
@@ -142,18 +168,44 @@ async function loadPhotos() {
 
     try {
         if (!config.googlePhotosAlbumId) throw new Error('No album ID configured.');
-        await loadGapiClient();
+        
         await authenticateWithGoogle();
-
         photoUrls = await fetchPhotosFromGoogleAlbum(config.googlePhotosAlbumId);
         renderPhoto(photoUrls[currentPhotoIndex]);
         startPhotoRotation();
-    } catch {
+    } catch (error) {
+        console.error('Error loading photos:', error);
         const response = await fetch('offline-data/photos.json');
         photoUrls = await response.json();
         renderPhoto(photoUrls[currentPhotoIndex]);
         startPhotoRotation();
     }
+}
+
+async function fetchPhotosFromGoogleAlbum(albumId) {
+    if (!googleToken) {
+        await authenticateWithGoogle();
+    }
+
+    // First get the album's media items
+    const mediaItemsResponse = await fetch('https://photoslibrary.googleapis.com/v1/mediaItems:search', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${googleToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            albumId: albumId,
+            pageSize: 50
+        })
+    });
+
+    if (!mediaItemsResponse.ok) {
+        throw new Error('Failed to fetch media items');
+    }
+
+    const mediaItemsData = await mediaItemsResponse.json();
+    return mediaItemsData.mediaItems.map(item => item.baseUrl);
 }
 
 function renderPhoto(photoUrl) {
@@ -198,8 +250,6 @@ function renderWeather(daily) {
 // --- Calendar Events ---
 async function loadCalendarEvents() {
     const calendarEvents = document.getElementById('calendar-events');
-    const calendarLoginBtn = document.getElementById('calendar-login-btn');
-
     calendarEvents.innerHTML = '<p>Loading calendar events...</p>';
 
     try {
@@ -211,7 +261,6 @@ async function loadCalendarEvents() {
     }
 
     try {
-        await loadGapiClient();
         await authenticateWithGoogle();
         const events = await fetchGoogleCalendarEvents();
         renderCalendar(events);
@@ -219,20 +268,35 @@ async function loadCalendarEvents() {
     } catch {
         calendarLoginBtn.classList.remove('hidden');
     }
+}
 
-    calendarLoginBtn.addEventListener('click', async () => {
-        showSpinner();
-        try {
-            await authenticateWithGoogle();
-            const events = await fetchGoogleCalendarEvents();
-            renderCalendar(events);
-            calendarLoginBtn.classList.add('hidden');
-        } catch {
-            calendarEvents.innerHTML = '<p>Login failed. Showing offline events.</p>';
-        } finally {
-            hideSpinner();
+async function fetchGoogleCalendarEvents() {
+    if (!googleToken) {
+        await authenticateWithGoogle();
+    }
+
+    const now = new Date();
+    const end = new Date();
+    end.setDate(now.getDate() + 7); // Get events for next 7 days
+
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+        `timeMin=${now.toISOString()}&timeMax=${end.toISOString()}&` +
+        `orderBy=startTime&singleEvents=true`, {
+        headers: {
+            'Authorization': `Bearer ${googleToken}`
         }
-    }, { once: true });
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch calendar events');
+    }
+
+    const data = await response.json();
+    return data.items.map(event => ({
+        title: event.summary,
+        start: event.start.dateTime || event.start.date,
+        end: event.end.dateTime || event.end.date
+    }));
 }
 
 function renderCalendar(events) {
@@ -247,6 +311,22 @@ function renderCalendar(events) {
     });
 }
 
+// --- Calendar Login Button Handler ---
+calendarLoginBtn.addEventListener('click', async () => {
+    showSpinner();
+    try {
+        await authenticateWithGoogle();
+        const events = await fetchGoogleCalendarEvents();
+        renderCalendar(events);
+        calendarLoginBtn.classList.add('hidden');
+    } catch (error) {
+        console.error('Google authentication failed:', error);
+        calendarEvents.innerHTML = '<p>Login failed. Showing offline events.</p>';
+    } finally {
+        hideSpinner();
+    }
+});
+
 // --- Spinner Control ---
 function showSpinner() {
     document.getElementById('spinner').classList.remove('hidden');
@@ -256,38 +336,8 @@ function hideSpinner() {
     document.getElementById('spinner').classList.add('hidden');
 }
 
-/*
-// --- Admin Panel Logic ---
-openAdminBtn.addEventListener('click', () => {
-    adminPanel.classList.remove('hidden');
-    adminLogin.classList.remove('hidden');
-    adminSettings.classList.add('hidden');
-});
-
-adminLoginForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-
-    const passwordInput = document.getElementById('admin-password').value;
-    const correctPassword = '1234';
-
-    if (passwordInput === correctPassword) {
-        adminLogin.classList.add('hidden');
-        adminSettings.classList.remove('hidden');
-        adminLoginError.textContent = '';
-    } else {
-        adminLoginError.textContent = 'Incorrect password. Try again.';
-    }
-});
-
-if (adminLogoutBtn) {
-    adminLogoutBtn.addEventListener('click', () => {
-      adminPanel.classList.add('hidden');
-    });
-  }
-*/
-
+// --- Admin Settings ---
 function loadAdminSettingsUI() {
-    // load saved settings into Admin Panel fields
     const savedSettings = JSON.parse(localStorage.getItem('familyDashboardSettings') || '{}');
 
     if (savedSettings.language) document.getElementById('setting-language').value = savedSettings.language;

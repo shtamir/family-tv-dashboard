@@ -8,11 +8,9 @@
         <link rel="stylesheet" href="style.css">
         <link id="theme-style" rel="stylesheet" href="themes/info-dense.css"> <!-- Theme will change this -->
 
+        <!-- Only include GIS client, not the old gapi -->
         <script src="https://accounts.google.com/gsi/client" async defer></script>
-        <script src="https://apis.google.com/js/api.js" async defer></script>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-
-
     </head>
 <body>
     <header id="header">
@@ -52,13 +50,6 @@
             <button id="calendar-login-btn" class="hidden">Login to Google Calendar</button>
             <div id="calendar-events"></div>
         </section>
-<!--
-        <div id="admin-panel-toggle">
-            <button id="open-admin">
-              <img src="assets/icons/admin-icon.png" alt="Admin" style="width:32px;height:32px;">
-            </button>
-          </div>
-        -->
     </main>
 
     <!-- Admin Panel -->
@@ -67,7 +58,6 @@
             <h2>Admin Login</h2>
             <form id="admin-login-form">
                 <input type="password" id="admin-password" placeholder="Enter password" autocomplete="new-password">
-
                 <br>
                 <button type="submit" id="admin-login-btn">Login</button>
             </form>
@@ -113,9 +103,7 @@
             <br><br>
             <button id="admin-logout-btn">Logout</button>
         </div>
-        
     </div>
-
 
     <script type="module" src="script.js"></script>
 </body>
