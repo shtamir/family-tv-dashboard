@@ -1,551 +1,305 @@
-// script.js - Complete Production Version
+// script.js (Final Cleaned + Fixed Version)
 
-// DOM Elements
-const elements = {
-    header: document.getElementById('header'),
-    datetime: document.getElementById('datetime'),
-    spinner: document.getElementById('spinner'),
-    messagesList: document.getElementById('messages-list'),
-    todoList: document.getElementById('todo-list'),
-    photoCarousel: document.getElementById('photo-carousel'),
-    weatherForecast: document.getElementById('weather-forecast'),
-    calendarEvents: document.getElementById('calendar-events'),
-    calendarLoginBtn: document.getElementById('calendar-login-btn'),
-    adminPanel: document.getElementById('admin-panel'),
-    adminLogin: document.getElementById('admin-login'),
-    adminSettings: document.getElementById('admin-settings'),
-    adminLoginForm: document.getElementById('admin-login-form'),
-    adminLogoutBtn: document.getElementById('admin-logout-btn')
-};
+// --- DOM Elements ---
+const adminPanel = document.getElementById('admin-panel');
+const adminLogin = document.getElementById('admin-login');
+const adminSettings = document.getElementById('admin-settings');
+const adminLoginBtn = document.getElementById('admin-login-btn');
+const adminLogoutBtn = document.getElementById('admin-logout-btn');
+const adminLoginError = document.getElementById('admin-login-error');
+const adminLoginForm = document.getElementById('admin-login-form');
+const openAdminBtn = document.getElementById('open-admin');
 
-// Application State
-const state = {
-    googleToken: null,
-    config: {},
-    currentPhotoIndex: 0,
-    photoUrls: [],
-    photoTimer: null
-};
+// --- Import helper APIs ---
+import { fetchGoogleSheet, fetchWeatherForecast, fetchPhotosFromGoogleAlbum } from './utils/api.js';
 
-// Token Management
-const tokenManager = {
-    storeToken(token) {
-        localStorage.setItem('googleToken', token);
-        const expiresAt = Date.now() + 3600000; // 1 hour expiration
-        localStorage.setItem('googleTokenExpiresAt', expiresAt);
-    },
+let config = {};
+let currentPhotoIndex = 0;
+let photoUrls = [];
+let photoTimer = null;
+let gapiLoaded = false;
+let gapiTokenClient = null;
 
-    getStoredToken() {
-        const token = localStorage.getItem('googleToken');
-        const expiresAt = localStorage.getItem('googleTokenExpiresAt');
-        
-        if (!token || !expiresAt) return null;
-        if (Date.now() > parseInt(expiresAt)) {
-            this.clearToken();
-            return null;
-        }
-        return token;
-    },
-
-    clearToken() {
-        localStorage.removeItem('googleToken');
-        localStorage.removeItem('googleTokenExpiresAt');
-        state.googleToken = null;
-    },
-
-    async validateToken() {
-        if (!state.googleToken) return false;
-        
+// --- Load Config ---
+async function loadConfig() {
+    const cachedConfig = localStorage.getItem('familyDashboardConfig');
+    if (cachedConfig) {
         try {
-            const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo', {
-                headers: { 'Authorization': `Bearer ${state.googleToken}` }
-            });
-            return response.ok;
+            config = JSON.parse(cachedConfig);
+            console.log('Loaded config from localStorage');
+            initializeDashboard();
+            return;
+        } catch (e) {
+            console.warn('Invalid cached config, will refetch.');
+        }
+    }
+
+    try {
+        const response = await fetch('./config/config.json');
+        if (!response.ok) throw new Error('config.json not found');
+        config = await response.json();
+        console.log('Loaded config.json from server');
+        localStorage.setItem('familyDashboardConfig', JSON.stringify(config));
+    } catch (error) {
+        console.warn('Main config.json failed, trying default-config.json...', error);
+        const responseDefault = await fetch('default-config.json');
+        if (!responseDefault.ok) throw new Error('default-config.json not found');
+        config = await responseDefault.json();
+        console.log('Loaded default-config.json from server');
+        localStorage.setItem('familyDashboardConfig', JSON.stringify(config));
+    }
+
+    const savedSettings = JSON.parse(localStorage.getItem('familyDashboardSettings') || '{}');
+    config = { ...config, ...savedSettings, features: { ...config.features, ...savedSettings.features } };
+
+    if (config.theme) {
+        document.getElementById('theme-style').href = `themes/${config.theme}.css`;
+    }
+
+    initializeDashboard();
+}
+
+// --- Initialize Dashboard ---
+function initializeDashboard() {
+    adminPanel.classList.add('hidden');
+    adminLogin.classList.add('hidden');
+    adminSettings.classList.add('hidden');
+
+    loadFamilyMessages();
+    loadTodoList();
+    loadPhotos();
+    loadWeatherForecast();
+    loadCalendarEvents();
+
+    loadAdminSettingsUI();
+}
+
+
+
+// --- Clock Handling ---
+function updateClock() {
+    const now = new Date();
+    const formatted = now.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+    document.getElementById('datetime').textContent = formatted;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// --- Family Messages ---
+async function loadFamilyMessages() {
+    const messagesList = document.getElementById('messages-list');
+    messagesList.innerHTML = '<p>Loading messages...</p>';
+
+    try {
+        const rows = await fetchGoogleSheet('Messages', config);
+        renderMessages(rows);
+    } catch {
+        const response = await fetch('offline-data/messages.json');
+        const offlineMessages = await response.json();
+        renderMessages(offlineMessages.map(msg => [msg]));
+    }
+}
+
+function renderMessages(rows) {
+    const container = document.getElementById('messages-list');
+    container.innerHTML = '';
+    rows.forEach(([message]) => {
+        const p = document.createElement('p');
+        p.textContent = message;
+        container.appendChild(p);
+    });
+}
+
+// --- To-Do List ---
+async function loadTodoList() {
+    const todoList = document.getElementById('todo-list');
+    todoList.innerHTML = '<p>Loading to-do list...</p>';
+
+    try {
+        const rows = await fetchGoogleSheet('ToDo', config);
+        renderTodos(rows);
+    } catch {
+        const response = await fetch('offline-data/todos.json');
+        const offlineTodos = await response.json();
+        renderTodos(offlineTodos.map(todo => [todo]));
+    }
+}
+
+function renderTodos(rows) {
+    const container = document.getElementById('todo-list');
+    container.innerHTML = '';
+    rows.forEach(([task]) => {
+        const div = document.createElement('div');
+        div.textContent = `• ${task}`;
+        container.appendChild(div);
+    });
+}
+
+// --- Photos Carousel ---
+async function loadPhotos() {
+    const photoCarousel = document.getElementById('photo-carousel');
+    photoCarousel.innerHTML = '<p>Loading photos...</p>';
+
+    try {
+        if (!config.googlePhotosAlbumId) throw new Error('No album ID configured.');
+        await loadGapiClient();
+        await authenticateWithGoogle();
+
+        photoUrls = await fetchPhotosFromGoogleAlbum(config.googlePhotosAlbumId);
+        renderPhoto(photoUrls[currentPhotoIndex]);
+        startPhotoRotation();
+    } catch {
+        const response = await fetch('offline-data/photos.json');
+        photoUrls = await response.json();
+        renderPhoto(photoUrls[currentPhotoIndex]);
+        startPhotoRotation();
+    }
+}
+
+function renderPhoto(photoUrl) {
+    const photoCarousel = document.getElementById('photo-carousel');
+    photoCarousel.innerHTML = `<img src="${photoUrl}" alt="Family Photo" style="width:90%; max-width:600px; border-radius:20px; box-shadow:0 4px 8px rgba(0,0,0,0.2);">`;
+}
+
+function startPhotoRotation() {
+    if (photoTimer) clearInterval(photoTimer);
+    photoTimer = setInterval(() => {
+        currentPhotoIndex = (currentPhotoIndex + 1) % photoUrls.length;
+        renderPhoto(photoUrls[currentPhotoIndex]);
+    }, (config.photoRotationIntervalSeconds || 10) * 1000);
+}
+
+// --- Weather Forecast ---
+async function loadWeatherForecast() {
+    const weatherForecast = document.getElementById('weather-forecast');
+    weatherForecast.innerHTML = '<p>Loading weather...</p>';
+
+    try {
+        const daily = await fetchWeatherForecast(config.latitude, config.longitude);
+        renderWeather(daily);
+    } catch {
+        const response = await fetch('offline-data/weather.json');
+        const offlineWeather = await response.json();
+        renderWeather(offlineWeather);
+    }
+}
+
+function renderWeather(daily) {
+    const container = document.getElementById('weather-forecast');
+    container.innerHTML = '';
+    for (let i = 0; i < daily.time.length; i++) {
+        const day = document.createElement('div');
+        day.className = 'weather-day';
+        day.innerHTML = `<strong>${daily.time[i]}</strong><br>Max: ${daily.temperature_2m_max[i]}°C, Min: ${daily.temperature_2m_min[i]}°C`;
+        container.appendChild(day);
+    }
+}
+
+// --- Calendar Events ---
+async function loadCalendarEvents() {
+    const calendarEvents = document.getElementById('calendar-events');
+    const calendarLoginBtn = document.getElementById('calendar-login-btn');
+
+    calendarEvents.innerHTML = '<p>Loading calendar events...</p>';
+
+    try {
+        const response = await fetch('offline-data/calendar.json');
+        const offlineEvents = await response.json();
+        renderCalendar(offlineEvents);
+    } catch {
+        calendarEvents.innerHTML = '<p>No events available.</p>';
+    }
+
+    try {
+        await loadGapiClient();
+        await authenticateWithGoogle();
+        const events = await fetchGoogleCalendarEvents();
+        renderCalendar(events);
+        calendarLoginBtn.classList.add('hidden');
+    } catch {
+        calendarLoginBtn.classList.remove('hidden');
+    }
+
+    calendarLoginBtn.addEventListener('click', async () => {
+        showSpinner();
+        try {
+            await authenticateWithGoogle();
+            const events = await fetchGoogleCalendarEvents();
+            renderCalendar(events);
+            calendarLoginBtn.classList.add('hidden');
         } catch {
-            return false;
-        }
-    }
-};
-
-// Authentication Service
-const authService = {
-    async authenticate() {
-        const storedToken = tokenManager.getStoredToken();
-        if (storedToken) {
-            state.googleToken = storedToken;
-            return { access_token: storedToken };
-        }
-
-        return new Promise((resolve, reject) => {
-            if (!window.google) {
-                return reject(new Error('Google auth client not loaded'));
-            }
-
-            const client = google.accounts.oauth2.initTokenClient({
-                client_id: state.config.googleClientId,
-                scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/photoslibrary.readonly',
-                callback: (response) => {
-                    if (response.error) return reject(response.error);
-                    state.googleToken = response.access_token;
-                    tokenManager.storeToken(response.access_token);
-                    resolve(response);
-                },
-                error_callback: (error) => reject(error)
-            });
-            client.requestAccessToken();
-        });
-    },
-
-    async logout() {
-        if (state.googleToken) {
-            try {
-                await fetch(`https://oauth2.googleapis.com/revoke?token=${state.googleToken}`, {
-                    method: 'POST'
-                });
-            } catch (error) {
-                console.error('Logout error:', error);
-            } finally {
-                tokenManager.clearToken();
-                window.location.reload();
-            }
-        }
-    }
-};
-
-// API Service
-const apiService = {
-    async fetchWithAuth(url, options = {}) {
-        if (!state.googleToken || !(await tokenManager.validateToken())) {
-            await authService.authenticate();
-        }
-        
-        const headers = {
-            'Authorization': `Bearer ${state.googleToken}`,
-            ...(options.headers || {})
-        };
-        
-        const response = await fetch(url, { ...options, headers });
-        
-        if (response.status === 401) {
-            tokenManager.clearToken();
-            await authService.authenticate();
-            headers['Authorization'] = `Bearer ${state.googleToken}`;
-            return await fetch(url, { ...options, headers });
-        }
-        
-        return response;
-    },
-
-    async fetchGoogleSheet(sheetName) {
-        try {
-            const response = await fetch(`${state.config.sheetsApiUrl}?sheet=${encodeURIComponent(sheetName)}`);
-            if (!response.ok) throw new Error('Sheet fetch failed');
-            return await response.json();
-        } catch (error) {
-            console.error('Failed to fetch sheet:', error);
-            throw error;
-        }
-    },
-
-    async fetchWeatherForecast(lat, lon) {
-        try {
-            const response = await fetch(`${state.config.weatherApiUrl}?lat=${lat}&lon=${lon}`);
-            if (!response.ok) throw new Error('Weather fetch failed');
-            return await response.json();
-        } catch (error) {
-            console.error('Failed to fetch weather:', error);
-            throw error;
-        }
-    },
-
-    async fetchGooglePhotos(albumId) {
-        if (!albumId) throw new Error('Missing album ID');
-        
-        try {
-            // Verify album exists
-            const albumResponse = await this.fetchWithAuth(
-                `https://photoslibrary.googleapis.com/v1/albums/${albumId}`
-            );
-            
-            if (!albumResponse.ok) {
-                const error = await albumResponse.json();
-                throw new Error(error.error?.message || 'Album not found');
-            }
-
-            // Fetch media items
-            const mediaResponse = await this.fetchWithAuth(
-                'https://photoslibrary.googleapis.com/v1/mediaItems:search',
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        albumId: albumId,
-                        pageSize: 50,
-                        filters: {
-                            mediaTypeFilter: { mediaTypes: ["PHOTO"] }
-                        }
-                    })
-                }
-            );
-
-            if (!mediaResponse.ok) {
-                const error = await mediaResponse.json();
-                throw new Error(error.error?.message || 'Photo fetch failed');
-            }
-
-            const data = await mediaResponse.json();
-            return data.mediaItems?.map(item => item.baseUrl) || [];
-        } catch (error) {
-            console.error('Google Photos API error:', error);
-            throw error;
-        }
-    },
-
-    async fetchCalendarEvents() {
-        try {
-            const now = new Date();
-            const end = new Date();
-            end.setDate(now.getDate() + 7);
-
-            const response = await this.fetchWithAuth(
-                `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-                `timeMin=${now.toISOString()}&timeMax=${end.toISOString()}&` +
-                `orderBy=startTime&singleEvents=true`
-            );
-
-            if (!response.ok) throw new Error('Calendar fetch failed');
-
-            const data = await response.json();
-            return data.items.map(event => ({
-                title: event.summary,
-                start: event.start.dateTime || event.start.date,
-                end: event.end.dateTime || event.end.date
-            }));
-        } catch (error) {
-            console.error('Calendar API error:', error);
-            throw error;
-        }
-    }
-};
-
-// UI Components
-const uiComponents = {
-    showSpinner() {
-        elements.spinner.classList.remove('hidden');
-    },
-
-    hideSpinner() {
-        elements.spinner.classList.add('hidden');
-    },
-
-    updateClock() {
-        const now = new Date();
-        elements.datetime.textContent = now.toLocaleString('en-GB', { 
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    },
-
-    renderMessages(messages) {
-        elements.messagesList.innerHTML = '';
-        messages.forEach(msg => {
-            const element = document.createElement('div');
-            element.className = 'message-item';
-            element.textContent = msg;
-            elements.messagesList.appendChild(element);
-        });
-    },
-
-    renderTodos(todos) {
-        elements.todoList.innerHTML = '';
-        todos.forEach(task => {
-            const element = document.createElement('div');
-            element.className = 'todo-item';
-            element.innerHTML = `<span class="bullet">•</span> ${task}`;
-            elements.todoList.appendChild(element);
-        });
-    },
-
-    renderPhoto(url) {
-        elements.photoCarousel.innerHTML = `
-            <div class="photo-container">
-                <img src="${url}" 
-                     alt="Family photo" 
-                     class="family-photo"
-                     onerror="this.onerror=null;this.classList.add('photo-error')">
-            </div>
-        `;
-    },
-
-    renderWeather(forecast) {
-        elements.weatherForecast.innerHTML = '';
-        forecast.daily.time.forEach((day, index) => {
-            const element = document.createElement('div');
-            element.className = 'weather-day';
-            element.innerHTML = `
-                <div class="weather-day-name">${new Date(day).toLocaleDateString('en', { weekday: 'short' })}</div>
-                <div class="weather-temp-max">${Math.round(forecast.daily.temperature_2m_max[index])}°</div>
-                <div class="weather-temp-min">${Math.round(forecast.daily.temperature_2m_min[index])}°</div>
-            `;
-            elements.weatherForecast.appendChild(element);
-        });
-    },
-
-    renderCalendar(events) {
-        elements.calendarEvents.innerHTML = '';
-        if (events.length === 0) {
-            elements.calendarEvents.innerHTML = '<p>No upcoming events</p>';
-            return;
-        }
-
-        events.slice(0, 5).forEach(event => {
-            const element = document.createElement('div');
-            element.className = 'calendar-event';
-            element.innerHTML = `
-                <div class="event-title">${event.title}</div>
-                <div class="event-time">
-                    ${new Date(event.start).toLocaleString('en', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}
-                </div>
-            `;
-            elements.calendarEvents.appendChild(element);
-        });
-    }
-};
-
-// Dashboard Controller
-const dashboardController = {
-    async init() {
-        await this.loadConfig();
-        this.setupEventListeners();
-        this.initializeModules();
-    },
-
-    async loadConfig() {
-        try {
-            // Try to load from localStorage first
-            const savedConfig = localStorage.getItem('dashboardConfig');
-            if (savedConfig) {
-                state.config = JSON.parse(savedConfig);
-            }
-
-            // Then load from server
-            const response = await fetch('/config.json');
-            if (response.ok) {
-                const serverConfig = await response.json();
-                state.config = { ...serverConfig, ...state.config };
-                localStorage.setItem('dashboardConfig', JSON.stringify(serverConfig));
-            }
-        } catch (error) {
-            console.error('Config load failed:', error);
-        }
-    },
-
-    setupEventListeners() {
-        // Clock update
-        setInterval(uiComponents.updateClock, 1000);
-        
-        // Calendar login button
-        if (elements.calendarLoginBtn) {
-            elements.calendarLoginBtn.addEventListener('click', () => {
-                this.loadCalendarData();
-            });
-        }
-
-        // Admin logout
-        if (elements.adminLogoutBtn) {
-            elements.adminLogoutBtn.addEventListener('click', () => {
-                authService.logout();
-            });
-        }
-
-        // Token validation check every 5 minutes
-        setInterval(() => tokenManager.validateToken(), 300000);
-    },
-
-    initializeModules() {
-        uiComponents.updateClock();
-        this.loadMessagesData();
-        this.loadTodoData();
-        this.loadPhotosData();
-        this.loadWeatherData();
-        this.loadCalendarData();
-    },
-
-    async loadMessagesData() {
-        try {
-            uiComponents.showSpinner();
-            const messages = await apiService.fetchGoogleSheet('Messages');
-            uiComponents.renderMessages(messages);
-        } catch (error) {
-            console.error('Failed to load messages:', error);
-            elements.messagesList.innerHTML = '<p class="error-message">Messages unavailable</p>';
+            calendarEvents.innerHTML = '<p>Login failed. Showing offline events.</p>';
         } finally {
-            uiComponents.hideSpinner();
+            hideSpinner();
         }
-    },
+    }, { once: true });
+}
 
-    async loadTodoData() {
-        try {
-            const todos = await apiService.fetchGoogleSheet('ToDo');
-            uiComponents.renderTodos(todos);
-        } catch (error) {
-            console.error('Failed to load todos:', error);
-            elements.todoList.innerHTML = '<p class="error-message">To-do list unavailable</p>';
-        }
-    },
+function renderCalendar(events) {
+    const container = document.getElementById('calendar-events');
+    container.innerHTML = '';
+    events.sort((a, b) => new Date(a.start) - new Date(b.start));
+    events.slice(0, 5).forEach(event => {
+        const div = document.createElement('div');
+        div.className = 'calendar-event';
+        div.innerHTML = `<strong>${event.title}</strong><br><small>${new Date(event.start).toLocaleString(config.language || 'en')}</small>`;
+        container.appendChild(div);
+    });
+}
 
-    
-    async loadPhotosData() {
-        await photoManager.loadPhotos();
+// --- Spinner Control ---
+function showSpinner() {
+    document.getElementById('spinner').classList.remove('hidden');
+}
 
-        if (!state.config.googlePhotosAlbumId) {
-            elements.photoCarousel.innerHTML = '<p class="error-message">Photo album not configured</p>';
-            return;
-        }
+function hideSpinner() {
+    document.getElementById('spinner').classList.add('hidden');
+}
 
-        try {
-            uiComponents.showSpinner();
-            state.photoUrls = await apiService.fetchGooglePhotos(state.config.googlePhotosAlbumId);
-            
-            if (state.photoUrls.length === 0) {
-                throw new Error('No photos found in album');
-            }
-            
-            uiComponents.renderPhoto(state.photoUrls[state.currentPhotoIndex]);
-            this.startPhotoRotation();
-        } catch (error) {
-            console.error('Failed to load photos:', error);
-            elements.photoCarousel.innerHTML = '<p class="error-message">Photos unavailable</p>';
-        } finally {
-            uiComponents.hideSpinner();
-        }
-    },
+/*
+// --- Admin Panel Logic ---
+openAdminBtn.addEventListener('click', () => {
+    adminPanel.classList.remove('hidden');
+    adminLogin.classList.remove('hidden');
+    adminSettings.classList.add('hidden');
+});
 
-    startPhotoRotation() {
-        if (state.photoTimer) clearInterval(state.photoTimer);
-        if (state.photoUrls.length <= 1) return;
-        
-        state.photoTimer = setInterval(() => {
-            state.currentPhotoIndex = (state.currentPhotoIndex + 1) % state.photoUrls.length;
-            uiComponents.renderPhoto(state.photoUrls[state.currentPhotoIndex]);
-        }, state.config.photoRotationIntervalSeconds * 1000);
-    },
+adminLoginForm.addEventListener('submit', (event) => {
+    event.preventDefault();
 
-    async loadWeatherData() {
-        if (!state.config.latitude || !state.config.longitude) {
-            elements.weatherForecast.innerHTML = '<p class="error-message">Location not configured</p>';
-            return;
-        }
+    const passwordInput = document.getElementById('admin-password').value;
+    const correctPassword = '1234';
 
-        try {
-            const forecast = await apiService.fetchWeatherForecast(
-                state.config.latitude,
-                state.config.longitude
-            );
-            uiComponents.renderWeather(forecast);
-        } catch (error) {
-            console.error('Failed to load weather:', error);
-            elements.weatherForecast.innerHTML = '<p class="error-message">Weather unavailable</p>';
-        }
-    },
-
-    async loadCalendarData() {
-        try {
-            uiComponents.showSpinner();
-            const events = await apiService.fetchCalendarEvents();
-            uiComponents.renderCalendar(events);
-            if (elements.calendarLoginBtn) {
-                elements.calendarLoginBtn.classList.add('hidden');
-            }
-        } catch (error) {
-            console.error('Failed to load calendar:', error);
-            if (elements.calendarLoginBtn) {
-                elements.calendarLoginBtn.classList.remove('hidden');
-            }
-            elements.calendarEvents.innerHTML = '<p class="error-message">Calendar unavailable</p>';
-        } finally {
-            uiComponents.hideSpinner();
-        }
+    if (passwordInput === correctPassword) {
+        adminLogin.classList.add('hidden');
+        adminSettings.classList.remove('hidden');
+        adminLoginError.textContent = '';
+    } else {
+        adminLoginError.textContent = 'Incorrect password. Try again.';
     }
-};
+});
 
-// Updated Photo Handling Section in script.js
+if (adminLogoutBtn) {
+    adminLogoutBtn.addEventListener('click', () => {
+      adminPanel.classList.add('hidden');
+    });
+  }
+*/
 
-const photoManager = {
-    defaultPhotos: [
-        'assets/photos/photo1.jpg',
-        'assets/photos/photo2.jpg',
-        'assets/photos/photo3.jpg'
-    ],
+function loadAdminSettingsUI() {
+    // load saved settings into Admin Panel fields
+    const savedSettings = JSON.parse(localStorage.getItem('familyDashboardSettings') || '{}');
 
-    async loadPhotos() {
-        elements.photoCarousel.innerHTML = '<p>Loading photos...</p>';
-        
-        try {
-            // Try to load from Google Photos first
-            if (state.config.googlePhotosAlbumId) {
-                await authService.authenticate();
-                state.photoUrls = await apiService.fetchGooglePhotos(state.config.googlePhotosAlbumId);
-                
-                if (state.photoUrls.length > 0) {
-                    this.renderCurrentPhoto();
-                    this.startPhotoRotation();
-                    return;
-                }
-            }
-            
-            // Fallback to local photos if Google Photos fails or is empty
-            throw new Error('No photos from Google, using local fallback');
-        } catch (error) {
-            console.error('Photo load error:', error.message);
-            this.useLocalPhotos();
-        }
-    },
-
-    useLocalPhotos() {
-        console.log('Using local default photos');
-        state.photoUrls = this.defaultPhotos;
-        this.renderCurrentPhoto();
-        this.startPhotoRotation();
-    },
-
-    renderCurrentPhoto() {
-        if (state.photoUrls.length === 0) {
-            elements.photoCarousel.innerHTML = '<p>No photos available</p>';
-            return;
-        }
-        
-        const photoUrl = state.photoUrls[state.currentPhotoIndex];
-        elements.photoCarousel.innerHTML = `
-            <div class="photo-container">
-                <img src="${photoUrl}" 
-                     alt="Family photo" 
-                     class="family-photo"
-                     onerror="this.onerror=null;this.src='assets/photos/default-photo.jpg'">
-            </div>
-        `;
-    },
-
-    startPhotoRotation() {
-        if (state.photoTimer) clearInterval(state.photoTimer);
-        if (state.photoUrls.length <= 1) return;
-        
-        state.photoTimer = setInterval(() => {
-            state.currentPhotoIndex = (state.currentPhotoIndex + 1) % state.photoUrls.length;
-            this.renderCurrentPhoto();
-        }, state.config.photoRotationIntervalSeconds * 1000);
+    if (savedSettings.language) document.getElementById('setting-language').value = savedSettings.language;
+    if (savedSettings.theme) document.getElementById('setting-theme').value = savedSettings.theme;
+    if (savedSettings.refreshIntervalMinutes) document.getElementById('setting-refresh-interval').value = savedSettings.refreshIntervalMinutes;
+    if (savedSettings.features) {
+        document.getElementById('setting-weather').checked = savedSettings.features.weather;
+        document.getElementById('setting-photos').checked = savedSettings.features.photos;
     }
-};
+}
 
-// Initialize the application
+// --- Start ---
 document.addEventListener('DOMContentLoaded', () => {
-    dashboardController.init();
+    loadConfig();
 });
