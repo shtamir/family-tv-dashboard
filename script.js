@@ -402,7 +402,10 @@ const dashboardController = {
         }
     },
 
+    
     async loadPhotosData() {
+        await photoManager.loadPhotos();
+
         if (!state.config.googlePhotosAlbumId) {
             elements.photoCarousel.innerHTML = '<p class="error-message">Photo album not configured</p>';
             return;
@@ -471,6 +474,74 @@ const dashboardController = {
         } finally {
             uiComponents.hideSpinner();
         }
+    }
+};
+
+// Updated Photo Handling Section in script.js
+
+const photoManager = {
+    defaultPhotos: [
+        'assets/photos/photo1.jpg',
+        'assets/photos/photo2.jpg',
+        'assets/photos/photo3.jpg'
+    ],
+
+    async loadPhotos() {
+        elements.photoCarousel.innerHTML = '<p>Loading photos...</p>';
+        
+        try {
+            // Try to load from Google Photos first
+            if (state.config.googlePhotosAlbumId) {
+                await authService.authenticate();
+                state.photoUrls = await apiService.fetchGooglePhotos(state.config.googlePhotosAlbumId);
+                
+                if (state.photoUrls.length > 0) {
+                    this.renderCurrentPhoto();
+                    this.startPhotoRotation();
+                    return;
+                }
+            }
+            
+            // Fallback to local photos if Google Photos fails or is empty
+            throw new Error('No photos from Google, using local fallback');
+        } catch (error) {
+            console.error('Photo load error:', error.message);
+            this.useLocalPhotos();
+        }
+    },
+
+    useLocalPhotos() {
+        console.log('Using local default photos');
+        state.photoUrls = this.defaultPhotos;
+        this.renderCurrentPhoto();
+        this.startPhotoRotation();
+    },
+
+    renderCurrentPhoto() {
+        if (state.photoUrls.length === 0) {
+            elements.photoCarousel.innerHTML = '<p>No photos available</p>';
+            return;
+        }
+        
+        const photoUrl = state.photoUrls[state.currentPhotoIndex];
+        elements.photoCarousel.innerHTML = `
+            <div class="photo-container">
+                <img src="${photoUrl}" 
+                     alt="Family photo" 
+                     class="family-photo"
+                     onerror="this.onerror=null;this.src='assets/photos/default-photo.jpg'">
+            </div>
+        `;
+    },
+
+    startPhotoRotation() {
+        if (state.photoTimer) clearInterval(state.photoTimer);
+        if (state.photoUrls.length <= 1) return;
+        
+        state.photoTimer = setInterval(() => {
+            state.currentPhotoIndex = (state.currentPhotoIndex + 1) % state.photoUrls.length;
+            this.renderCurrentPhoto();
+        }, state.config.photoRotationIntervalSeconds * 1000);
     }
 };
 
