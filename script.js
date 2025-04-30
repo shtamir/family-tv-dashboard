@@ -270,22 +270,43 @@ async function loadCalendarEvents() {
     }
 }
 
-async function fetchGoogleCalendarEvents() {
+// Fetch Google Calendar events with token refresh
+async function fetchWithTokenRefresh(url, options = {}) {
     if (!googleToken) {
         await authenticateWithGoogle();
     }
+    
+    try {
+        options.headers = options.headers || {};
+        options.headers['Authorization'] = `Bearer ${googleToken}`;
+        
+        const response = await fetch(url, options);
+        
+        // If unauthorized, try refreshing token once
+        if (response.status === 401) {
+            clearStoredGoogleToken();
+            await authenticateWithGoogle();
+            options.headers['Authorization'] = `Bearer ${googleToken}`;
+            return await fetch(url, options);
+        }
+        
+        return response;
+    } catch (error) {
+        throw error;
+    }
+}
 
+// Fetch Google Calendar events
+async function fetchGoogleCalendarEvents() {
     const now = new Date();
     const end = new Date();
-    end.setDate(now.getDate() + 7); // Get events for next 7 days
+    end.setDate(now.getDate() + 7);
 
-    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+    const response = await fetchWithTokenRefresh(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
         `timeMin=${now.toISOString()}&timeMax=${end.toISOString()}&` +
-        `orderBy=startTime&singleEvents=true`, {
-        headers: {
-            'Authorization': `Bearer ${googleToken}`
-        }
-    });
+        `orderBy=startTime&singleEvents=true`
+    );
 
     if (!response.ok) {
         throw new Error('Failed to fetch calendar events');
@@ -347,6 +368,118 @@ function loadAdminSettingsUI() {
         document.getElementById('setting-weather').checked = savedSettings.features.weather;
         document.getElementById('setting-photos').checked = savedSettings.features.photos;
     }
+}
+
+// Add these functions to handle token storage
+function storeGoogleToken(token) {
+    localStorage.setItem('googleToken', token);
+    // Store expiration time (1 hour from now)
+    const expiresAt = new Date().getTime() + (60 * 60 * 1000);
+    localStorage.setItem('googleTokenExpiresAt', expiresAt);
+}
+
+// Check if the token is expired
+function getStoredGoogleToken() {
+    const token = localStorage.getItem('googleToken');
+    const expiresAt = localStorage.getItem('googleTokenExpiresAt');
+    
+    if (!token || !expiresAt) return null;
+    
+    // Check if token is still valid
+    if (new Date().getTime() > parseInt(expiresAt)) {
+        clearStoredGoogleToken();
+        return null;
+    }
+    
+    return token;
+}
+
+// Clear stored token and expiration time
+function clearStoredGoogleToken() {
+    localStorage.removeItem('googleToken');
+    localStorage.removeItem('googleTokenExpiresAt');
+}
+
+// Modify your authenticateWithGoogle function
+async function authenticateWithGoogle() {
+    // Check for valid stored token first
+    const storedToken = getStoredGoogleToken();
+    if (storedToken) {
+        googleToken = storedToken;
+        return { access_token: storedToken };
+    }
+
+    return new Promise((resolve, reject) => {
+        const client = google.accounts.oauth2.initTokenClient({
+            client_id: config.googleClientId,
+            scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/photoslibrary.readonly',
+            callback: (response) => {
+                if (response.error) {
+                    reject(response.error);
+                    return;
+                }
+                googleToken = response.access_token;
+                storeGoogleToken(response.access_token);
+                resolve(response);
+            },
+            error_callback: (error) => {
+                reject(error);
+            }
+        });
+
+        client.requestAccessToken();
+    });
+}
+
+// Add a token refresh check (call this periodically)
+async function checkTokenValidity() {
+    if (!googleToken) return;
+    
+    try {
+        // Simple check by making a lightweight API call
+        const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo', {
+            headers: { 'Authorization': `Bearer ${googleToken}` }
+        });
+        
+        if (!response.ok) {
+            clearStoredGoogleToken();
+            googleToken = null;
+        }
+    } catch (error) {
+        clearStoredGoogleToken();
+        googleToken = null;
+    }
+}
+
+// Call this on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadConfig();
+    // Check token every 5 minutes
+    setInterval(checkTokenValidity, 5 * 60 * 1000);
+});
+
+// Check if the token is expired
+function logoutGoogle() {
+    if (googleToken) {
+        // Revoke the token with Google
+        const revokeUrl = `https://oauth2.googleapis.com/revoke?token=${googleToken}`;
+        fetch(revokeUrl, { method: 'POST' })
+            .then(() => {
+                clearStoredGoogleToken();
+                googleToken = null;
+                // Reload the page or update UI as needed
+                location.reload();
+            })
+            .catch(console.error);
+    }
+}
+
+// Add to your admin panel logout button
+if (adminLogoutBtn) {
+    adminLogoutBtn.addEventListener('click', () => {
+        logoutGoogle();
+        adminPanel.classList.add('hidden');
+    });
 }
 
 // --- Start ---
