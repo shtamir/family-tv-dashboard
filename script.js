@@ -119,46 +119,53 @@ async function fetchWithTokenRefresh(url, options = {}) {
 
 // --- Photos Functions ---
 async function fetchPhotosFromGoogleAlbum(albumId) {
-    if (!albumId) throw new Error('No Google Photos album ID configured');
-    
+    if (!albumId) {
+        throw new Error('Google Photos album ID is not configured');
+    }
+
     try {
-        // First verify album exists
+        // First verify the album exists
         const albumResponse = await fetchWithTokenRefresh(
             `https://photoslibrary.googleapis.com/v1/albums/${albumId}`
         );
         
         if (!albumResponse.ok) {
             const error = await albumResponse.json();
-            throw new Error(error.error?.message || 'Album not found');
+            console.error('Album verification failed:', error);
+            throw new Error('Failed to access photo album');
         }
 
-        // Then fetch media items
+        // Then fetch media items with proper request format
         const mediaResponse = await fetchWithTokenRefresh(
             'https://photoslibrary.googleapis.com/v1/mediaItems:search',
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({
                     albumId: albumId,
-                    pageSize: 50,
+                    pageSize: 100,  // Increased from 50 for better coverage
                     filters: {
                         mediaTypeFilter: {
                             mediaTypes: ["PHOTO"]
-                        }
+                        },
+                        includeArchivedMedia: false
                     }
                 })
             }
         );
 
         if (!mediaResponse.ok) {
-            const error = await mediaResponse.json();
-            throw new Error(error.error?.message || 'Failed to fetch photos');
+            const errorDetails = await mediaResponse.json();
+            console.error('Photos API Error:', errorDetails);
+            throw new Error(errorDetails.error?.message || 'Failed to fetch photos');
         }
 
         const data = await mediaResponse.json();
         return data.mediaItems?.map(item => item.baseUrl) || [];
     } catch (error) {
-        console.error('Photo fetch error:', error);
+        console.error('Error in fetchPhotosFromGoogleAlbum:', error);
         throw error;
     }
 }
