@@ -22,3 +22,4 @@ yarn-error.log*
 server.js
 package.json
 package-lock.json
+script_new.js
