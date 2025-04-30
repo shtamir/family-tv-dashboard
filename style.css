@@ -116,10 +116,17 @@ input, select {
 /* Calendar Events */
 .calendar-event {
     margin: 15px 0;
-    padding: 10px;
-    background-color: #e3f2fd;
+    padding: 15px;
+    background-color: #f8f9fa;
     border-radius: 12px;
     font-size: 1.5rem;
+    color: #212529;
+    border-left: 4px solid #4CAF50;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.calendar-event:hover {
+    background-color: #e9ecef;
 }
 
 #spinner {
