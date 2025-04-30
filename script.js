@@ -133,34 +133,6 @@ function renderTodos(rows) {
     });
 }
 
-// --- Google Authentication ---
-async function authenticateWithGoogle() {
-    return new Promise((resolve, reject) => {
-        if (googleToken) {
-            resolve(googleToken);
-            return;
-        }
-
-        const client = google.accounts.oauth2.initTokenClient({
-            client_id: config.googleClientId,
-            scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/photoslibrary.readonly',
-            callback: (response) => {
-                if (response.error) {
-                    reject(response.error);
-                    return;
-                }
-                googleToken = response.access_token;
-                resolve(response);
-            },
-            error_callback: (error) => {
-                reject(error);
-            }
-        });
-
-        client.requestAccessToken();
-    });
-}
-
 // --- Photos Carousel ---
 async function loadPhotos() {
     const photoCarousel = document.getElementById('photo-carousel');
@@ -400,7 +372,7 @@ function clearStoredGoogleToken() {
     localStorage.removeItem('googleTokenExpiresAt');
 }
 
-// Modify your authenticateWithGoogle function
+// --- Admin Login ---
 async function authenticateWithGoogle() {
     // Check for valid stored token first
     const storedToken = getStoredGoogleToken();
