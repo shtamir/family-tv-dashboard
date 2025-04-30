@@ -131,6 +131,8 @@ input, select {
 .calendar-event strong {
     color: #0d6efd;
 }
+
+/* Spinner */
 #spinner {
     position: fixed;
     top: 0;
